@@ -1,0 +1,115 @@
+---
+title: "Microplastic flag degradation analysis"
+output: html_document
+date: "2024-11-30"
+author: "Nadia Frontier"
+---
+
+# --------------------------------------------------------------
+
+# *Environmental degradation and loss of polyester marker flags is a major source of localised plastic pollution in the Antarctic*
+
+# --------------------------------------------------------------
+
+## Clear R's brain
+```{r}
+rm(list = ls())
+```
+
+## Import data
+```{r}
+flags <- read.csv("flag_deployment_1_for_R.csv")
+```
+
+
+## Set factors
+
+```{r}
+flags$Type<-as.factor(flags$Type)
+flags$ID<-as.factor(flags$ID)
+```
+
+## Install packages
+
+```{r}
+suppressWarnings(suppressPackageStartupMessages(library(car)))
+suppressWarnings(suppressPackageStartupMessages(library(MASS)))
+suppressWarnings(suppressPackageStartupMessages(library(nlme)))
+suppressWarnings(suppressPackageStartupMessages(library(lme4)))
+suppressWarnings(suppressPackageStartupMessages(library(multcomp)))
+suppressWarnings(suppressPackageStartupMessages(library(ggplot2)))
+suppressWarnings(suppressPackageStartupMessages(library(emmeans)))
+suppressWarnings(suppressPackageStartupMessages(library(dplyr)))
+suppressWarnings(suppressPackageStartupMessages(library(ggfortify)))
+
+library(car)
+library(MASS)
+require (nlme)
+require(lme4)
+require(multcomp)
+require(ggplot2)
+require(emmeans)
+require(dplyr)
+require(ggfortify)
+```
+
+
+## Creating mean values for each material type
+
+```{r}
+mean<-tapply(flags$percent_lost, list(flags$Type), mean)
+```
+
+# Build model
+
+```{r}
+flagmodel <- lm(percent_lost~ Type, data= flags)
+anova(flagmodel)
+```
+# Test residuals of the model
+
+```{r}
+hist(flagmodel$residuals) # slightly right skewed
+```
+
+# Plot residuals vs expected
+```{r}
+autoplot(flagmodel, smooth.colour = NA)
+#The normal QQ plot looks quite good
+#Not seeing much of a pattern in residuals vs fitted
+```
+
+# Post hoc testing
+
+```{r}
+emmeans(flagmodel, pairwise~Type)
+```
+
+
+# Using pipe to generate mean values within flag dataset
+
+```{r}
+mean1<- flags %>% 
+group_by(Type) %>% 
+summarise (percent_lost = mean (percent_lost))
+
+print(mean1)
+```
+
+# Plot data
+
+```{r}
+lineplot<-ggplot(flags, aes(x = Type, y = percent_lost, colour = Type))+
+  geom_boxplot(alpha=0.5)+
+  geom_point(position= position_jitterdodge())+
+  geom_point(data= mean1, size=7, shape =18, alpha=0.5)+
+  ylab("Flag mass lost (%)")+
+  xlab("Flag type")
+
+lineplot+mytheme1
+```
+
+```{r}
+ggsave(file= "Figure 5.pdf", width = 30, height = 21, scale=0.3)
+```
+
